@@ -14,18 +14,24 @@ from contextlib import closing
 import threading
 
 
-jobs = []
+PROMPT = 'Link to download: '
 
 CARRIAGE_BACK = '\r'
 CLEAR_LINE = '\x1b[K'
+CURSOR_UP = '\x1b[A'
+CURSOR_FOWRWARD = '\x1b[C'
 NEW_LINE = '\n'
+
+jobs = []
 
 down_re = re.compile(r'\[download\] (?P<filename>.*) has already been downloaded')
 dest_re = re.compile(r'Destination: (?P<filename>.*)$', re.MULTILINE)
 
 
-def writeout(line):
-    sys.stdout.write(line)
+def writeout(line, prompt=True):
+    sys.stdout.write(CURSOR_UP + NEW_LINE + line)
+    if prompt:
+        sys.stdout.write(PROMPT)
     sys.stdout.flush()
 
 
@@ -33,9 +39,8 @@ def print_and_save_output(proc):
     output = []
     while proc.poll() is None:
         line = proc.stdout.readline()
-        if line.startswith('[download]'):
-            line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
-            # line = NEW_LINE + line.rstrip()
+        if line.startswith('[download]') and 'ETA' in line:
+            line = CURSOR_UP + CARRIAGE_BACK + CLEAR_LINE + line.strip() + NEW_LINE
         writeout(line)
         output.append(line)
     writeout(NEW_LINE * 2)
@@ -43,7 +48,7 @@ def print_and_save_output(proc):
 
 
 def process_jobs():
-    """Download one video at a time."""
+    """Download one video at a time from the jobs list."""
     while True:
         if not jobs:
             time.sleep(0.1)
@@ -60,16 +65,17 @@ def process_jobs():
 
 def main():
     while True:
-        print 'Folder:', os.getcwd()
-        link = raw_input('Link to download: ')
+        writeout('Folder: %s\n' % os.getcwd())
+        link = raw_input()
         if not link:
-            print
+            sys.stdout.write('\n')
+            sys.stdout.flush()
             continue
         elif not link.startswith('http'):
-            print 'Not a link: %s' % link, NEW_LINE * 2
+            writeout('Not a link: %s\n\n' % link, prompt=False)
             continue
         jobs.append(link)
-        print "Link added to the queue"
+        writeout('Link added to the queue: %s\n' % link, prompt=False)
 
 
 if __name__ == '__main__':
@@ -78,5 +84,5 @@ if __name__ == '__main__':
         processing_thread.daemon = True
         processing_thread.start()
         main()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         pass
