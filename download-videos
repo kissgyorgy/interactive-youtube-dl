@@ -17,10 +17,13 @@ import threading
 PROMPT = 'Link to download: '
 
 CARRIAGE_BACK = '\r'
-CLEAR_LINE = '\x1b[K'
-CURSOR_UP = '\x1b[A'
-CURSOR_FOWRWARD = '\x1b[C'
 NEW_LINE = '\n'
+ESC = '\x1b'
+# https://en.wikipedia.org/wiki/ANSI_escape_code#Sequence_elements
+CSI = ESC + '['
+CLEAR_LINE = CSI + 'K'
+CURSOR_UP = CSI + 'A'
+CURSOR_FOWRWARD = CSI + 'C'
 
 jobs = []
 
