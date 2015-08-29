@@ -9,6 +9,8 @@ import re
 import sys
 import webbrowser
 import subprocess as sp
+from contextlib import closing
+import threading
 
 
 CARRIAGE_BACK = '\r'
@@ -24,17 +26,27 @@ def writeout(line):
     sys.stdout.flush()
 
 
-def print_and_save_output(*params):
+def print_and_save_output(proc):
     output = []
-    with sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True) as proc:
-        while proc.poll() is None:
-            line = proc.stdout.readline()
-            if line.startswith('[download]'):
-                line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
-            writeout(line)
-            output.append(line)
+    while proc.poll() is None:
+        line = proc.stdout.readline()
+        if line.startswith('[download]'):
+            # line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
+            line = line.rstrip()
+        writeout(line)
+        output.append(line)
     writeout(NEW_LINE * 2)
     return ''.join(output)
+
+
+def print_and_open(link):
+    params = ['youtube-dl', link]
+    proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
+    output = print_and_save_output('youtube-dl', link)
+    m = down_re.search(output)
+    if not m:
+        m = dest_re.search(output)
+    webbrowser.open(m.group('filename'))
 
 
 def main():
@@ -47,11 +59,8 @@ def main():
         elif not link.startswith('http'):
             print 'Not a link: %s' % link, NEW_LINE * 2
             continue
-        output = print_and_save_output('youtube-dl', link)
-        m = down_re.search(output)
-        if not m:
-            m = dest_re.search(output)
-        webbrowser.open(m.group('filename'))
+        thread = threading.Thread(target=print_and_open, args=(link,))
+        thread.start()
 
 
 if __name__ == '__main__':
