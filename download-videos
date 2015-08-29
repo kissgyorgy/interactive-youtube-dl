@@ -1,0 +1,61 @@
+#!/usr/bin/env python2.7
+
+"""
+    Download youtube videos and open them after finish in an infinite cycle.
+"""
+
+import os
+import re
+import sys
+import webbrowser
+import subprocess as sp
+
+
+CARRIAGE_BACK = '\r'
+CLEAR_LINE = '\x1b[K'
+NEW_LINE = '\n'
+
+down_re = re.compile(r'\[download\] (?P<filename>.*) has already been downloaded')
+dest_re = re.compile(r'Destination: (?P<filename>.*)$', re.MULTILINE)
+
+
+def writeout(line):
+    sys.stdout.write(line)
+    sys.stdout.flush()
+
+
+def print_and_save_output(*params):
+    output = []
+    with sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True) as proc:
+        while proc.poll() is None:
+            line = proc.stdout.readline()
+            if line.startswith('[download]'):
+                line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
+            writeout(line)
+            output.append(line)
+    writeout(NEW_LINE * 2)
+    return ''.join(output)
+
+
+def main():
+    while True:
+        print 'Folder:', os.getcwd()
+        link = raw_input('Link to download: ')
+        if not link:
+            print
+            continue
+        elif not link.startswith('http'):
+            print 'Not a link: %s' % link, NEW_LINE * 2
+            continue
+        output = print_and_save_output('youtube-dl', link)
+        m = down_re.search(output)
+        if not m:
+            m = dest_re.search(output)
+        webbrowser.open(m.group('filename'))
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
