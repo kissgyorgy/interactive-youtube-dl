@@ -47,20 +47,23 @@ def print_and_save_output(proc):
     return ''.join(output)
 
 
-def process_jobs():
+class ProcessJobsThread(threading.Thread):
     """Download one video at a time from the jobs list."""
-    while True:
-        if not jobs:
-            time.sleep(0.1)
-            continue
-        link = jobs.pop(0)
-        params = ['youtube-dl', link]
-        proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
-        output = print_and_save_output(proc)
-        m = down_re.search(output)
-        if not m:
-            m = dest_re.search(output)
-        webbrowser.open(m.group('filename'))
+    daemon = True
+
+    def run(self):
+        while True:
+            if not jobs:
+                time.sleep(0.1)
+                continue
+            link = jobs.pop(0)
+            params = ['youtube-dl', link]
+            proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
+            output = print_and_save_output(proc)
+            m = down_re.search(output)
+            if not m:
+                m = dest_re.search(output)
+            webbrowser.open(m.group('filename'))
 
 
 def main():
@@ -80,9 +83,7 @@ def main():
 
 if __name__ == '__main__':
     try:
-        processing_thread = threading.Thread(target=process_jobs)
-        processing_thread.daemon = True
-        processing_thread.start()
+        ProcessJobsThread().start()
         main()
     except (KeyboardInterrupt, EOFError):
         pass
