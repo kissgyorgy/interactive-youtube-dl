@@ -53,7 +53,7 @@ def process_jobs():
         if not jobs:
             time.sleep(0.1)
             continue
-        link = jobs.pop()
+        link = jobs.pop(0)
         params = ['youtube-dl', link]
         proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
         output = print_and_save_output(proc)
