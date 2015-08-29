@@ -7,11 +7,14 @@
 import os
 import re
 import sys
+import time
 import webbrowser
 import subprocess as sp
 from contextlib import closing
 import threading
 
+
+jobs = []
 
 CARRIAGE_BACK = '\r'
 CLEAR_LINE = '\x1b[K'
@@ -31,22 +34,28 @@ def print_and_save_output(proc):
     while proc.poll() is None:
         line = proc.stdout.readline()
         if line.startswith('[download]'):
-            # line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
-            line = line.rstrip()
+            line = CARRIAGE_BACK + CLEAR_LINE + line.rstrip()
+            # line = NEW_LINE + line.rstrip()
         writeout(line)
         output.append(line)
     writeout(NEW_LINE * 2)
     return ''.join(output)
 
 
-def print_and_open(link):
-    params = ['youtube-dl', link]
-    proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
-    output = print_and_save_output('youtube-dl', link)
-    m = down_re.search(output)
-    if not m:
-        m = dest_re.search(output)
-    webbrowser.open(m.group('filename'))
+def process_jobs():
+    """Download one video at a time."""
+    while True:
+        if not jobs:
+            time.sleep(0.1)
+            continue
+        link = jobs.pop()
+        params = ['youtube-dl', link]
+        proc = sp.Popen(params, stdout=sp.PIPE, stderr=sp.STDOUT, universal_newlines=True)
+        output = print_and_save_output(proc)
+        m = down_re.search(output)
+        if not m:
+            m = dest_re.search(output)
+        webbrowser.open(m.group('filename'))
 
 
 def main():
@@ -59,12 +68,15 @@ def main():
         elif not link.startswith('http'):
             print 'Not a link: %s' % link, NEW_LINE * 2
             continue
-        thread = threading.Thread(target=print_and_open, args=(link,))
-        thread.start()
+        jobs.append(link)
+        print "Link added to the queue"
 
 
 if __name__ == '__main__':
     try:
+        processing_thread = threading.Thread(target=process_jobs)
+        processing_thread.daemon = True
+        processing_thread.start()
         main()
     except KeyboardInterrupt:
         pass
